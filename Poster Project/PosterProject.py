@@ -54,7 +54,7 @@ def binDist(data:pd.DataFrame)->tuple:
     return (avg,std)
 
 for i, data in enumerate(data_sets):
-    data["Dist"] = pd.cut(data['Log Count'], bins=40, labels=list(range(40)))
+    data["Dist"] = pd.cut(data['Log Count'], bins=40, labels=list(range(40))) #distributing genes based on log Count
     data["Dist"] = data["Dist"].fillna(0).astype(str).astype(int)
     data['Dist'] = data['Dist'].astype(str).astype(int)
     # data['Dist'] = data['Dist'].replace(0, np.nan)
@@ -62,7 +62,7 @@ for i, data in enumerate(data_sets):
 
     avg,std = binDist(data)
     first, last = (0,0)
-    for count in counts[2:]:
+    for count in counts[2:]:    #selecting bins based on count density one standard deviation from suppressed to expressed peak
         if count < avg+std:
             first = list(np.where(counts == count))
             first = first[0][0]
