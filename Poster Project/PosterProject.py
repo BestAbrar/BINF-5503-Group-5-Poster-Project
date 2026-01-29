@@ -15,21 +15,39 @@ file = ["A778_D0_gene","A778_D6_gene",
         "A870_D0_gene","A870_D6_gene",
         "A899_D0_gene","A899_D6_gene"]
 
-'''DATA CLEANING'''
-
-#headers for initial datasets
-headers = ["Ensembl Gene Record","Common Gene Name","Read Count"]
-# remove QC values from datasets, adding log correction and visualizing initial data structure
 data_sets = [data1, data2, data3, data4, data5, data6, data7, data8]
+headers = ["Ensembl Gene Record","Common Gene Name","Read Count"]
+
+'''DATA CLEANING'''
+# adding headers for initial datasets
+# remove QC values from datasets, adding log correction and visualizing initial data structure
 for i, data in enumerate(data_sets):
     data = data.iloc[:-5] # removes “__no_feature”."__ambiguous”.”__too_low_aQual”,”__not_aligned”,”__alignment_not_unique”
     data.columns = headers
     mask = data['Read Count'] != 0
     data.loc[mask, 'Log Count'] = np.log(data.loc[mask, 'Read Count']) #performing log correction, igonre counts that equal 0
-    data.to_csv("Poster Project\\Datasets\\1_CancerTranscriptomics\\read_counts\\"+file[i]+".tsv", index = False,sep="\t")
     data_sets[i] = data
     # print(data.info())
     # print(data.describe())
+
+# removing genes that are 0 across all datasets
+for i, data in enumerate(data_sets):
+    data = data[(data_sets[0]['Read Count']!=0)&
+                (data_sets[1]['Read Count']!=0)&
+                (data_sets[2]['Read Count']!=0)&
+                (data_sets[3]['Read Count']!=0)&
+                (data_sets[4]['Read Count']!=0)&
+                (data_sets[5]['Read Count']!=0)&
+                (data_sets[6]['Read Count']!=0)&
+                (data_sets[7]['Read Count']!=0)]
+    data.to_csv("Poster Project\\Datasets\\1_CancerTranscriptomics\\read_counts\\"+file[i]+".tsv", index = False,sep="\t")
+
+#combining Day0s and Day6s for future data analysis
+Day0data = pd.concat(data_sets[0::2], ignore_index=True)
+Day6data = pd.concat(data_sets[1::2], ignore_index=True)
+
+Day0data.to_csv("Poster Project\\Datasets\\Day0.tsv", index = False,sep="\t")
+Day0data.to_csv("Poster Project\\Datasets\\Day6.tsv", index = False,sep="\t")
 
 '''VISUALIZING THE DISTRIBUTION OF COUNTS PER GENE'''
 # Log correction reveals that the count distribution is bimodal, suggesting that there are two distributions
@@ -81,3 +99,4 @@ for i, data in enumerate(data_sets):
     # print(ExtrmeData.describe())
     NormalData.to_csv("Poster Project\\Datasets\\NORMAL\\NORMAL_"+file[i]+".tsv", index = False,sep="\t")
     ExtrmeData.to_csv("Poster Project\\Datasets\\EXTREME\\EXTREME_"+file[i]+".tsv", index = False,sep="\t")
+
