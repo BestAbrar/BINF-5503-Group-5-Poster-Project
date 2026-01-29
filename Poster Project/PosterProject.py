@@ -1,14 +1,14 @@
 import pandas as pd
 import numpy as np
 
-data1 = pd.read_csv("Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A778_D0_gene.tsv",sep="\t")
-data2 = pd.read_csv("Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A778_D6_gene.tsv",sep="\t")
-data3 = pd.read_csv("Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A820_D0_gene.tsv",sep="\t")
-data4 = pd.read_csv("Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A820_D6_gene.tsv",sep="\t")
-data5 = pd.read_csv("Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A870_D0_gene.tsv",sep="\t")
-data6 = pd.read_csv("Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A870_D6_gene.tsv",sep="\t")
-data7 = pd.read_csv("Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A899_D0_gene.tsv",sep="\t")
-data8 = pd.read_csv("Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A899_D6_gene.tsv",sep="\t")
+data1 = pd.read_csv("Poster Project\\Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A778_D0_gene.tsv",sep="\t")
+data2 = pd.read_csv("Poster Project\\Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A778_D6_gene.tsv",sep="\t")
+data3 = pd.read_csv("Poster Project\\Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A820_D0_gene.tsv",sep="\t")
+data4 = pd.read_csv("Poster Project\\Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A820_D6_gene.tsv",sep="\t")
+data5 = pd.read_csv("Poster Project\\Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A870_D0_gene.tsv",sep="\t")
+data6 = pd.read_csv("Poster Project\\Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A870_D6_gene.tsv",sep="\t")
+data7 = pd.read_csv("Poster Project\\Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A899_D0_gene.tsv",sep="\t")
+data8 = pd.read_csv("Poster Project\\Datasets\\raw\\1_CancerTranscriptomics\\read_counts\\A899_D6_gene.tsv",sep="\t")
 
 file = ["A778_D0_gene","A778_D6_gene",
         "A820_D0_gene","A820_D6_gene",
@@ -26,7 +26,7 @@ for i, data in enumerate(data_sets):
     data.columns = headers
     mask = data['Read Count'] != 0
     data.loc[mask, 'Log Count'] = np.log(data.loc[mask, 'Read Count']) #performing log correction, igonre counts that equal 0
-    data.to_csv("Datasets\\1_CancerTranscriptomics\\read_counts\\"+file[i]+".tsv", index = False,sep="\t")
+    data.to_csv("Poster Project\\Datasets\\1_CancerTranscriptomics\\read_counts\\"+file[i]+".tsv", index = False,sep="\t")
     data_sets[i] = data
     # print(data.info())
     # print(data.describe())
@@ -35,12 +35,13 @@ for i, data in enumerate(data_sets):
 # Log correction reveals that the count distribution is bimodal, suggesting that there are two distributions
 # Genes that are upregulated and genes that are down regulated with significant overlap
 # Genes are seperated based on whether the expression of gene is clearly up or down regulated
+bin_numb=40
 
 def binDist(data:pd.DataFrame)->tuple:
     bins = {}
     ran = float(data["Log Count"].max()-data["Log Count"].min())
-    inc = ran/40
-    for j in range(40):
+    inc = ran/bin_numb
+    for j in range(bin_numb):
         bins[(j*inc,(j+1)*inc)]=0
     for val in data["Log Count"]:
         for bin in bins:
@@ -54,15 +55,15 @@ def binDist(data:pd.DataFrame)->tuple:
     return (avg,std)
 
 for i, data in enumerate(data_sets):
-    data["Dist"] = pd.cut(data['Log Count'], bins=40, labels=list(range(40))) #distributing genes based on log Count
+    data["Dist"] = pd.cut(data['Log Count'], bins=bin_numb, labels=list(range(bin_numb))) #distributing genes based on log Count
     data["Dist"] = data["Dist"].fillna(0).astype(str).astype(int)
     data['Dist'] = data['Dist'].astype(str).astype(int)
     # data['Dist'] = data['Dist'].replace(0, np.nan)
-    counts, bin_edges = np.histogram(data['Dist'], bins=40)
+    counts, bin_edges = np.histogram(data['Dist'], bins=bin_numb)
 
     avg,std = binDist(data)
     first, last = (0,0)
-    for count in counts[2:]:    #selecting bins based on count density one standard deviation from suppressed to expressed peak
+    for count in counts[2:]:    #selecting bins based on count density in one standard deviation from suppressed to expressed peak
         if count < avg+std:
             first = list(np.where(counts == count))
             first = first[0][0]
@@ -78,11 +79,5 @@ for i, data in enumerate(data_sets):
     ExtrmeData = data[(data["Dist"]<first)|(data["Dist"]>last)] #ExtremeData contains all genes that have counts that are outside one standard deviation of counts
     # print(NormalData.describe())
     # print(ExtrmeData.describe())
-    NormalData.to_csv("Datasets\\NORMAL\\NORMAL_"+file[i]+".tsv", index = False,sep="\t")
-    ExtrmeData.to_csv("Datasets\\EXTREME\\EXTREME_"+file[i]+".tsv", index = False,sep="\t")
-
-
-
-    
-
-
+    NormalData.to_csv("Poster Project\\Datasets\\NORMAL\\NORMAL_"+file[i]+".tsv", index = False,sep="\t")
+    ExtrmeData.to_csv("Poster Project\\Datasets\\EXTREME\\EXTREME_"+file[i]+".tsv", index = False,sep="\t")
