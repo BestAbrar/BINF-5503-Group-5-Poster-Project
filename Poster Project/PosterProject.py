@@ -27,24 +27,25 @@ for i, data in enumerate(data_sets):
     mask = data['Read Count'] != 0
     data.loc[mask, 'Log Count'] = np.log(data.loc[mask, 'Read Count']) #performing log correction, igonre counts that equal 0
     data_sets[i] = data
+    data.to_csv("Poster Project\\Datasets\\1_CancerTranscriptomics\\read_counts\\"+file[i]+".tsv", index = False,sep="\t")
     # print(data.info())
     # print(data.describe())
 
-# removing genes that are 0 across all datasets
-for i, data in enumerate(data_sets):
-    data = data[(data_sets[0]['Read Count']!=0)&
-                (data_sets[1]['Read Count']!=0)&
-                (data_sets[2]['Read Count']!=0)&
-                (data_sets[3]['Read Count']!=0)&
-                (data_sets[4]['Read Count']!=0)&
-                (data_sets[5]['Read Count']!=0)&
-                (data_sets[6]['Read Count']!=0)&
-                (data_sets[7]['Read Count']!=0)]
-    data.to_csv("Poster Project\\Datasets\\1_CancerTranscriptomics\\read_counts\\"+file[i]+".tsv", index = False,sep="\t")
+# combining .tsv files for future data processing
+combinedData = data_sets[0].drop(columns=['Common Gene Name','Log Count'])
+for i, data in enumerate(data_sets[1:]):
+    combinedData=pd.concat([combinedData,data['Read Count']],axis=1)
 
-#combining Day0s and Day6s for future data analysis
-Day0data = pd.concat(data_sets[0::2], ignore_index=True)
-Day6data = pd.concat(data_sets[1::2], ignore_index=True)
+headers = [headers[0]]+file
+combinedData.columns=headers
+
+# Pre-filtering -> removing genes that have low read count (total feature count of less than 10)
+combinedData = combinedData[combinedData.iloc[:, 1:].sum(axis=1)>=10]
+combinedData.to_csv("Poster Project\\Datasets\\combinedData.tsv",index=False,sep='\t')
+
+#combining Day0s and Day6s for future data processing
+Day0data = combinedData.drop(columns=file[1::2])
+Day6data = combinedData.drop(columns=file[0::2])
 
 Day0data.to_csv("Poster Project\\Datasets\\Day0.tsv", index = False,sep="\t")
 Day0data.to_csv("Poster Project\\Datasets\\Day6.tsv", index = False,sep="\t")
@@ -99,4 +100,3 @@ for i, data in enumerate(data_sets):
     # print(ExtrmeData.describe())
     NormalData.to_csv("Poster Project\\Datasets\\NORMAL\\NORMAL_"+file[i]+".tsv", index = False,sep="\t")
     ExtrmeData.to_csv("Poster Project\\Datasets\\EXTREME\\EXTREME_"+file[i]+".tsv", index = False,sep="\t")
-
