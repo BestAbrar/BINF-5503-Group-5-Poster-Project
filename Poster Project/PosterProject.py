@@ -48,7 +48,7 @@ Day0data = combinedData.drop(columns=file[1::2])
 Day6data = combinedData.drop(columns=file[0::2])
 
 Day0data.to_csv("Poster Project\\Datasets\\Day0.tsv", index = False,sep="\t")
-Day0data.to_csv("Poster Project\\Datasets\\Day6.tsv", index = False,sep="\t")
+Day6data.to_csv("Poster Project\\Datasets\\Day6.tsv", index = False,sep="\t")
 
 '''VISUALIZING THE DISTRIBUTION OF COUNTS PER GENE'''
 # Log correction reveals that the count distribution is bimodal, suggesting that there are two distributions
