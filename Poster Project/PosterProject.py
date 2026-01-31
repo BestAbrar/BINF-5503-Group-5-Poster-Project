@@ -25,7 +25,7 @@ for i, data in enumerate(data_sets):
     data = data.iloc[:-5] # removes “__no_feature”."__ambiguous”.”__too_low_aQual”,”__not_aligned”,”__alignment_not_unique”
     data.columns = headers
     mask = data['Read Count'] != 0
-    data.loc[mask, 'Log Count'] = np.log(data.loc[mask, 'Read Count']) #performing log correction, igonre counts that equal 0
+    data.loc[mask, 'Log Count'] = np.log(data.loc[mask, 'Read Count']) #performing log correction for visualization later, igonre counts that equal 0
     data_sets[i] = data
     data.to_csv("Poster Project\\Datasets\\1_CancerTranscriptomics\\read_counts\\"+file[i]+".tsv", index = False,sep="\t")
     # print(data.info())
