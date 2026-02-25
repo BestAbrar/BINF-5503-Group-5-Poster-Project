@@ -1,0 +1,145 @@
+---
+title: "Project Project– Draft Visualizations"
+author: "Abrar Faruque"
+date: "2026-02-25"
+output: pdf_document
+---
+
+Import packages
+
+```{r}
+#install.packages("gamma")
+# install.packages("RColorBrewer")
+library(RColorBrewer)
+library(dplyr)
+library(gamma)
+library(ggplot2)
+library(DESeq2)
+library(pheatmap)
+library(RColorBrewer)
+library(EnhancedVolcano)
+
+# setwd("D:\\Git Repositories\\BINF-5503-Group-5-Poster-Project\\Poster Project\\Datasets")
+```
+
+
+
+The sequencing was performed on tumor cultures from 4 patients at 2 time points
+
+```{r}
+cts <- read.csv("combinedData.tsv", sep = "\t", row.names="gene_id")
+anot <- read.csv("dataset_annotation.csv")
+dds <- DESeqDataSetFromMatrix(cts, anot, ~ day)
+#Pre-filter
+dim(dds)
+smallestGroupSize <- 3
+keep <- rowSums(counts(dds) >= 10) >= smallestGroupSize
+dds <- dds[keep, ]
+dim(dds)
+# Run DESeq() and results()
+dds_out <- DESeq(dds)
+res <- results(dds_out)
+res
+mcols(res)
+summary(res)
+resultsNames(dds)
+
+```
+
+```{r}
+res <- na.omit(res)
+# How many of our genes are _significantly_ differentially expressed?
+nrow(res[res$pvalue < 0.05, ])
+
+# How many have large fold changes?
+nrow(res[abs(res$log2FoldChange) > 1, ])
+
+# How many of our genes are differentially expressed (by our significance and logFC thresholds)?
+nrow(res[res$padj < 0.05 & abs(res$log2FoldChange) > 1, ])
+
+# How many are upregulated?
+nrow(res[res$padj < 0.05 & res$log2FoldChange > 1, ])
+
+# How many are down regulated?
+nrow(res[res$padj < 0.05 & res$log2FoldChange < -1, ])
+```
+```{r}
+# Rerun everything with a different design formula
+dds <- DESeqDataSetFromMatrix(cts, anot, ~ day + patient)
+
+# Pre-filter
+smallestGroupSize <- 3
+keep <- rowSums(counts(dds) >= 10) >= smallestGroupSize
+dds <- dds[keep, ]
+dim(dds)
+
+# Run DESeq()
+dds_condition_type <- DESeq(dds)
+res <- results(dds_condition_type)
+summary(res)
+resultsNames(dds_condition_type)
+```
+```{r}
+# Get the result of the contrasts that are already given to us:
+resCond1 <- results(dds_condition_type, name = "day")
+resCond2 <- results(dds_condition_type, name = "patient_A820_vs_A778")
+resCond3 <- results(dds_condition_type, name = "patient_A870_vs_A778")
+resCond4 <- results(dds_condition_type, name = "patient_A899_vs_A778")
+
+# How many DEGs are there as a result of Cond1(Day)?
+resCond1_filtered <- na.omit(resCond1)
+nrow(resCond1_filtered[resCond1_filtered$padj < 0.05 & abs(resCond1_filtered$log2FoldChange) > 1, ])
+```
+
+```{r}
+plotMA(res)
+```
+```{r}
+res_df <- data.frame(res) # fill in your results object
+res_df$DEG <- "NA"
+res_df$DEG[res_df$log2FoldChange > 1 & res_df$pvalue < 0.05] <- "Up-regulated"
+res_df$DEG[res_df$log2FoldChange < -1 & res_df$pvalue < 0.05] <- "Down-regulated"
+head(res_df)
+table(res_df$DEG)
+
+ggplot(data = res_df, aes(x = log2FoldChange, y = -log10(pvalue), col = DEG)) +
+        geom_point() + 
+        theme_minimal() +
+        scale_color_manual(values = c("blue", "black", "red")) +
+        geom_vline(xintercept = c(-0.6, 0.6), col = "red") +
+        geom_hline(yintercept = -log10(0.05), col = "red")
+```
+
+```{r}
+# There are way too many heatmap packages, but let us use pheatmap() from the pheatmap package for now
+vsd <- vst(dds, blind = FALSE) # variance stabilized transformation. Corrects for size factors or normalization factors
+sampleDists <- dist(t(assay(vsd))) # create a distance matrix between samples
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(vsd$file)
+colnames(sampleDistMatrix) <- paste(vsd$file)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows = sampleDists,
+         clustering_distance_cols = sampleDists)
+
+top_genes <- res_df %>% 
+  slice_min(padj,n=10)
+print(top_genes)
+norm_counts <- counts(dds, normalized = FALSE)
+mat <- norm_counts[rownames(top_genes), ]
+mat <- log2(mat + 1)
+mat_scaled <- t(scale(t(mat)))
+annotation_col <- data.frame(
+  Day = colData(dds)$day
+)
+rownames(annotation_col) <- colnames(mat_scaled)
+pheatmap(mat_scaled,
+         color = colorRampPalette(rev(brewer.pal(n = 7, name = "RdBu")))(100),
+         annotation_col = annotation_col,
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         show_rownames = TRUE,
+         show_colnames = TRUE,
+         fontsize_row = 6,
+         main = "Top 10 Differentially Expressed Genes")
+```
+
