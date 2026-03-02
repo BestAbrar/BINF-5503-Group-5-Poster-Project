@@ -16,6 +16,7 @@ library(RColorBrewer)
 library(gamma)
 library(DESeq2)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(pheatmap)
 library(RColorBrewer)
@@ -44,7 +45,7 @@ dim(dds)
 # Run DESeq() and results()
 dds_out <- DESeq(dds)
 res <- results(dds_out)
-res
+# res
 mcols(res)
 summary(res)
 resultsNames(dds)
@@ -88,6 +89,24 @@ resultsNames(dds_condition_type)
 ```
 
 ```{r}
+# Record Statistical difference based on Day and Pateint
+
+resCond1 <- results(dds_condition_type, name = "day")
+resCond2 <- results(dds_condition_type, name = "patient_A820_vs_A778")
+resCond3 <- results(dds_condition_type, name = "patient_A870_vs_A778")
+resCond4 <- results(dds_condition_type, name = "patient_A899_vs_A778")
+
+summary(resCond1)
+summary(resCond2)
+summary(resCond3)
+summary(resCond4)
+
+# Determining Degrees of freedom
+nrow(resCond1[!is.na(resCond1$padj) & resCond1$padj < 0.05 & abs(resCond1$log2FoldChange) > 1, ])
+
+```
+
+```{r}
 plotMA(res)
 ```
 ```{r}
@@ -112,14 +131,14 @@ ggplot(data = res_df, aes(x = log2FoldChange, y = -log10(pvalue), col = DEG)) +
 ```
 
 ```{r}
-vsd <- vst(dds, blind = FALSE) # variance stabilized transformation. Corrects for size factors or normalization factors
-sampleDists <- dist(t(assay(vsd))) # create a distance matrix between samples
-sampleDistMatrix <- as.matrix(sampleDists)
-rownames(sampleDistMatrix) <- paste(vsd$file)
-colnames(sampleDistMatrix) <- paste(vsd$file)
-pheatmap(sampleDistMatrix,
-         clustering_distance_rows = sampleDists,
-         clustering_distance_cols = sampleDists)
+# vsd <- vst(dds, blind = FALSE) # variance stabilized transformation. Corrects for size factors or normalization factors
+# sampleDists <- dist(t(assay(vsd))) # create a distance matrix between samples
+# sampleDistMatrix <- as.matrix(sampleDists)
+# rownames(sampleDistMatrix) <- paste(vsd$file)
+# colnames(sampleDistMatrix) <- paste(vsd$file)
+# pheatmap(sampleDistMatrix,
+#          clustering_distance_rows = sampleDists,
+#          clustering_distance_cols = sampleDists)
 #Selecting the top 10 genes based on p-adjusted value
 top_genes <- res_df %>% 
   slice_min(padj,n=10)
@@ -200,7 +219,11 @@ pca_df2 <- pca_df %>%
                values_to = "Group")
 
 # plot PC variance in a scree plot
-plot(prop_bCancer,
+variance_pca = pca$sdev^2
+# proportion variance
+variance_pca / sum(variance_pca) -> prop_pca
+
+plot(prop_pca,
      xlab = "Principal Components",
      ylab = "Proportion of Variance Explained",
      ylim = c(0, 1))
