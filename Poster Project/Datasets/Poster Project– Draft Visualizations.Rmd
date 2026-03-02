@@ -5,26 +5,31 @@ date: "2026-02-25"
 output: pdf_document
 ---
 
-Import packages
+Install/Import packages 
 
 ```{r}
-#install.packages("gamma")
+# install.packages("gamma")
 # install.packages("RColorBrewer")
+# install.packages("kableExtra")
+# BiocManager::install("org.Hs.eg.db")
 library(RColorBrewer)
-library(dplyr)
 library(gamma)
-library(ggplot2)
 library(DESeq2)
+library(dplyr)
+library(ggplot2)
 library(pheatmap)
 library(RColorBrewer)
-library(EnhancedVolcano)
+library(knitr)
+library(kableExtra)
+library(org.Hs.eg.db)
 
 # setwd("D:\\Git Repositories\\BINF-5503-Group-5-Poster-Project\\Poster Project\\Datasets")
 ```
 
 
 
-The sequencing was performed on tumor cultures from 4 patients at 2 time points
+The sequencing was performed on tumor cultures from 4 patients at 2 time points for a total of 8 count files, this data was previously cleaned using "PosterProject.py"
+but was pre-filtered just to ensure cleaning was correct, followed by DESeq differential expression analysis
 
 ```{r}
 cts <- read.csv("combinedData.tsv", sep = "\t", row.names="gene_id")
@@ -45,9 +50,10 @@ summary(res)
 resultsNames(dds)
 
 ```
-
 ```{r}
+#NA results are removed from the resulting differential expression analysis
 res <- na.omit(res)
+
 # How many of our genes are _significantly_ differentially expressed?
 nrow(res[res$pvalue < 0.05, ])
 
@@ -63,8 +69,9 @@ nrow(res[res$padj < 0.05 & res$log2FoldChange > 1, ])
 # How many are down regulated?
 nrow(res[res$padj < 0.05 & res$log2FoldChange < -1, ])
 ```
+
 ```{r}
-# Rerun everything with a different design formula
+# Performing Gene expression analysis using day + pateint
 dds <- DESeqDataSetFromMatrix(cts, anot, ~ day + patient)
 
 # Pre-filter
@@ -79,22 +86,12 @@ res <- results(dds_condition_type)
 summary(res)
 resultsNames(dds_condition_type)
 ```
-```{r}
-# Get the result of the contrasts that are already given to us:
-resCond1 <- results(dds_condition_type, name = "day")
-resCond2 <- results(dds_condition_type, name = "patient_A820_vs_A778")
-resCond3 <- results(dds_condition_type, name = "patient_A870_vs_A778")
-resCond4 <- results(dds_condition_type, name = "patient_A899_vs_A778")
-
-# How many DEGs are there as a result of Cond1(Day)?
-resCond1_filtered <- na.omit(resCond1)
-nrow(resCond1_filtered[resCond1_filtered$padj < 0.05 & abs(resCond1_filtered$log2FoldChange) > 1, ])
-```
 
 ```{r}
 plotMA(res)
 ```
 ```{r}
+#adding column to label genes as up/Down regulated or 'NA' if pvalue is insignificant
 res_df <- data.frame(res) # fill in your results object
 res_df$DEG <- "NA"
 res_df$DEG[res_df$log2FoldChange > 1 & res_df$pvalue < 0.05] <- "Up-regulated"
@@ -103,15 +100,18 @@ head(res_df)
 table(res_df$DEG)
 
 ggplot(data = res_df, aes(x = log2FoldChange, y = -log10(pvalue), col = DEG)) +
-        geom_point() + 
-        theme_minimal() +
+        geom_point() +
+        theme_minimal()  +
+        labs(
+          title = "Overall HGSOC Expression after 6 days of culture",
+          colour = "Expression"
+        )+
         scale_color_manual(values = c("blue", "black", "red")) +
-        geom_vline(xintercept = c(-0.6, 0.6), col = "red") +
-        geom_hline(yintercept = -log10(0.05), col = "red")
+        geom_vline(xintercept = c(-0.6, 0.6), col = "grey50",linetype = 'dashed') +
+        geom_hline(yintercept = -log10(0.05), col = "grey50",linetype = 'dashed')
 ```
 
 ```{r}
-# There are way too many heatmap packages, but let us use pheatmap() from the pheatmap package for now
 vsd <- vst(dds, blind = FALSE) # variance stabilized transformation. Corrects for size factors or normalization factors
 sampleDists <- dist(t(assay(vsd))) # create a distance matrix between samples
 sampleDistMatrix <- as.matrix(sampleDists)
@@ -120,7 +120,7 @@ colnames(sampleDistMatrix) <- paste(vsd$file)
 pheatmap(sampleDistMatrix,
          clustering_distance_rows = sampleDists,
          clustering_distance_cols = sampleDists)
-
+#Selecting the top 10 genes based on p-adjusted value
 top_genes <- res_df %>% 
   slice_min(padj,n=10)
 print(top_genes)
@@ -141,5 +141,80 @@ pheatmap(mat_scaled,
          show_colnames = TRUE,
          fontsize_row = 6,
          main = "Top 10 Differentially Expressed Genes")
+```
+
+```{r}
+# for table formatting
+gene_ids <- sub("\\..*", "", rownames(top_genes)) # remove ensemble id version number 
+ensembl_ids <- AnnotationDbi::select(org.Hs.eg.db, 
+                                     keys = gene_ids,
+column = c("SYMBOL", "GENENAME"),
+keytype = "ENSEMBL")
+ensembl_ids %>%
+  mutate(DEG = top_genes$DEG) %>%
+  kbl() %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+Performing PCA analysis
+```{r}
+#' Changing top_genes to include all genes used in the DEseq Differential expression
+#' analysis
+top_genes <- res_df %>% 
+  slice_min(padj,n=17240)
+mat <- norm_counts[rownames(top_genes), ]
+mat <- log2(mat + 1)
+mat_scaled <- t(scale(t(mat)))
+annotation_col <- data.frame(
+  Day = colData(dds)$day
+)
+rownames(annotation_col) <- colnames(mat_scaled)
+
+# expression_matrix: genes x samples seq (RNA Seq File)
+pca <- prcomp(t(mat_scaled), scale. = FALSE)
+pca_df <- data.frame(
+  PC1 = pca$x[,1],
+  PC2 = pca$x[,2],
+  Day = colData(dds)$day,
+  Patient = colData(dds)$patient
+)
+
+ggplot(pca_df, aes(x = PC1, y = PC2, colour = row.names(pca_df))) +
+  geom_point(size = 3) +
+  theme_classic() +
+  labs(
+    x = paste0("PC1"),
+    y = paste0("PC2"),
+    title = "PCA of each RNA-seq Run",
+    colour = "RNA-seq Run (patient_day)"
+  )+
+  scale_color_brewer(palette="Spectral")
+
+# expression_matrix: splitting matrix based on patient and day (RNA Seq File)
+pca_df2 <- pca_df %>%
+  mutate(
+    Day = as.character(Day),
+    Patient = as.character(Patient)
+  ) %>%
+  pivot_longer(cols = c(Day, Patient),
+               names_to = "ColorBy",
+               values_to = "Group")
+
+# plot PC variance in a scree plot
+plot(prop_bCancer,
+     xlab = "Principal Components",
+     ylab = "Proportion of Variance Explained",
+     ylim = c(0, 1))
+
+ggplot(pca_df2, aes(x = PC1, y = PC2, colour = Group)) +
+  geom_point(size = 3) +
+  theme_classic()+
+  facet_wrap(~ ColorBy, scales = "free") +
+  labs(
+    title = "PCA of RNA-seq Samples",
+    x = paste0("PC1 (", round(100 * summary(pca)$importance[2,1], 1), "%)"),
+    y = paste0("PC2 (", round(100 * summary(pca)$importance[2,2], 1), "%)"),
+    colour = "Day  Patient"
+  )+
+  scale_color_brewer(palette="Set1")
 ```
 
