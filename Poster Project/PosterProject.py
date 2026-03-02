@@ -54,7 +54,7 @@ Day6data.to_csv("Poster Project\\Datasets\\Day6.tsv", index = False,sep="\t")
 # Log correction reveals that the count distribution is bimodal, suggesting that there are two distributions
 # Genes that are upregulated and genes that are down regulated with significant overlap
 # (DEPRICATED) Genes are seperated based on whether the expression of gene is clearly up or down regulated (extreme) or ambigious (normal) based on the
-# bimodal distribution observed in Log correction, used to see if any conssitent genes observed in 'extreme' catagory
+# bimodal distribution observed in Log correction, purely exploritory, used to see if any conssitent genes observed in 'extreme' catagory
 # depreicated by heatmap and DESeq analysis done in 'visuals' .rmd file
 bin_numb=40
 
